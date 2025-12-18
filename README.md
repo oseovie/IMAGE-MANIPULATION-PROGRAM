@@ -19,3 +19,9 @@ This is a Python-based image manipulation application that allows users to modif
 1. Clone the repository:
    ```bash
    git clone https://github.com/oseovie/IMAGE-MANIPULATION-PROGRAM.git
+2.Copy code
+cd IMAGE-MANIPULATION-PROGRAM
+3.Run the Python file:
+bash
+Copy code
+python main.py
