@@ -1,0 +1,10 @@
+﻿# Optional heavyweight AI dependencies.
+# Install these only when you are ready to wire real model inference.
+# torch
+# torchvision
+# tensorflow
+# rembg
+# ultralytics
+# segment-anything
+# realesrgan
+# gfpgan

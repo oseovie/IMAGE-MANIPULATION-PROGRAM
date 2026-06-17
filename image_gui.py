@@ -2,7 +2,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, simpledialog
 
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps, ImageTk
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps, ImageTk
 
 
 IMAGE_TYPES = [
@@ -46,6 +46,7 @@ class ModernImageEditor:
         ).pack(fill=tk.X)
 
         self._add_button("Open Image", self.load_image).pack(fill=tk.X, padx=18, pady=(0, 8))
+        self._add_button("Prompt Edit", self.prompt_edit, managed=True).pack(fill=tk.X, padx=18, pady=4)
         self._add_button("Save As", self.save_image, managed=True).pack(fill=tk.X, padx=18, pady=4)
 
         self._add_separator()
@@ -65,6 +66,7 @@ class ModernImageEditor:
         self._add_button("Darker", lambda: self.apply_enhancement("brightness", 0.8), managed=True).pack(fill=tk.X, padx=18, pady=4)
         self._add_button("More Contrast", lambda: self.apply_enhancement("contrast", 1.2), managed=True).pack(fill=tk.X, padx=18, pady=4)
         self._add_button("Less Contrast", lambda: self.apply_enhancement("contrast", 0.8), managed=True).pack(fill=tk.X, padx=18, pady=4)
+        self._add_button("Auto Contrast", self.apply_auto_contrast, managed=True).pack(fill=tk.X, padx=18, pady=4)
 
         self._add_separator()
         self._add_button("Red Tint", lambda: self.apply_tint("red"), managed=True).pack(fill=tk.X, padx=18, pady=4)
@@ -72,7 +74,9 @@ class ModernImageEditor:
         self._add_button("Blue Tint", lambda: self.apply_tint("blue"), managed=True).pack(fill=tk.X, padx=18, pady=4)
 
         self._add_separator()
+        self._add_button("Clarity", self.apply_clarity, managed=True).pack(fill=tk.X, padx=18, pady=4)
         self._add_button("Sharpen", self.apply_sharpen, managed=True).pack(fill=tk.X, padx=18, pady=4)
+        self._add_button("Blur Background", self.blur_background, managed=True).pack(fill=tk.X, padx=18, pady=4)
         self._add_button("Blur", self.apply_blur, managed=True).pack(fill=tk.X, padx=18, pady=4)
         self._add_button("Resize", self.resize_image, managed=True).pack(fill=tk.X, padx=18, pady=4)
 
@@ -255,6 +259,29 @@ class ModernImageEditor:
         self.display_image()
         self._set_status(f"Adjusted {kind}.")
 
+    def apply_auto_contrast(self):
+        if not self._require_image():
+            return
+
+        self._push_history()
+        alpha = self.image.getchannel("A")
+        enhanced = ImageOps.autocontrast(self.image.convert("RGB"), cutoff=1).convert("RGBA")
+        enhanced.putalpha(alpha)
+        self.image = enhanced
+        self.display_image()
+        self._set_status("Applied auto contrast.")
+
+    def apply_clarity(self):
+        if not self._require_image():
+            return
+
+        self._push_history()
+        self.image = self.image.filter(
+            ImageFilter.UnsharpMask(radius=2, percent=165, threshold=3)
+        )
+        self.display_image()
+        self._set_status("Improved image clarity.")
+
     def apply_tint(self, color):
         if not self._require_image():
             return
@@ -289,6 +316,86 @@ class ModernImageEditor:
         self.image = self.image.filter(ImageFilter.GaussianBlur(radius=1.5))
         self.display_image()
         self._set_status("Blurred image.")
+
+    def blur_background(self):
+        if not self._require_image():
+            return
+
+        self._push_history()
+        self.image = self._make_background_blur(self.image)
+        self.display_image()
+        self._set_status("Blurred the background with a soft center subject mask.")
+
+    def _make_background_blur(self, image):
+        blurred = image.filter(ImageFilter.GaussianBlur(radius=8))
+        width, height = image.size
+        mask = Image.new("L", image.size, 0)
+        mask_box = (
+            int(width * 0.18),
+            int(height * 0.12),
+            int(width * 0.82),
+            int(height * 0.90),
+        )
+        mask_draw = Image.new("L", image.size, 0)
+        draw = ImageDraw.Draw(mask_draw)
+        draw.ellipse(mask_box, fill=255)
+        mask = mask_draw.filter(ImageFilter.GaussianBlur(radius=max(18, min(width, height) // 18)))
+        return Image.composite(image, blurred, mask)
+
+    def prompt_edit(self):
+        if not self._require_image():
+            return
+
+        prompt = simpledialog.askstring(
+            "Prompt Edit",
+            "Tell the editor what to do:",
+            parent=self.root,
+        )
+        if not prompt:
+            return
+
+        self.apply_prompt_command(prompt)
+
+    def apply_prompt_command(self, prompt):
+        command = prompt.lower().strip()
+
+        if any(word in command for word in ("background", "backdrop")) and "blur" in command:
+            self.blur_background()
+        elif any(word in command for word in ("clear", "clarity", "enhance", "sharp")):
+            self.apply_clarity()
+        elif "auto" in command and "contrast" in command:
+            self.apply_auto_contrast()
+        elif "contrast" in command:
+            factor = 0.8 if any(word in command for word in ("less", "reduce", "lower")) else 1.2
+            self.apply_enhancement("contrast", factor)
+        elif any(word in command for word in ("bright", "light", "lighter")):
+            self.apply_enhancement("brightness", 1.2)
+        elif any(word in command for word in ("dark", "darker", "dim")):
+            self.apply_enhancement("brightness", 0.8)
+        elif any(word in command for word in ("gray", "grey", "black and white", "monochrome")):
+            self.apply_grayscale()
+        elif "rotate" in command and "left" in command:
+            self.apply_rotate(90)
+        elif "rotate" in command and "right" in command:
+            self.apply_rotate(-90)
+        elif "flip" in command and any(word in command for word in ("vertical", "up", "down")):
+            self.apply_flip("vertical")
+        elif "flip" in command:
+            self.apply_flip("horizontal")
+        elif "blur" in command:
+            self.apply_blur()
+        elif "red" in command and "tint" in command:
+            self.apply_tint("red")
+        elif "green" in command and "tint" in command:
+            self.apply_tint("green")
+        elif "blue" in command and "tint" in command:
+            self.apply_tint("blue")
+        else:
+            messagebox.showinfo(
+                "Prompt Not Understood",
+                "Try prompts like: make it clearer, blur background, brighten image, rotate left, or make grayscale.",
+            )
+            self._set_status("Prompt was not recognized.")
 
     def resize_image(self):
         if not self._require_image():

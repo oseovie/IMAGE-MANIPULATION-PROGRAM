@@ -1,0 +1,3 @@
+class Settingspage:
+    pass
+

@@ -1,0 +1,3 @@
+class Mainwindow:
+    pass
+

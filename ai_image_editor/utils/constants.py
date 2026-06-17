@@ -1,0 +1,5 @@
+ASIC_EDITING = ["crop", "resize", "rotate", "flip"]
+COLOR_ADJUSTMENTS = ["brightness", "contrast", "saturation", "sharpness", "gamma", "exposure", "temperature", "tint", "vibrance", "shadows", "highlights"]
+FILTERS = ["vintage", "sepia", "black_white", "hdr", "cinematic", "warm", "cool", "film_effect", "vignette"]
+AI_FEATURES = ["super_resolution", "face_restoration", "deblur", "low_light", "segmentation", "object_removal", "object_detection", "colorization"]
+EXPORT_QUALITIES = [50, 75, 90, 100]
